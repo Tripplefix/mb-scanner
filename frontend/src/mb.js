@@ -116,19 +116,23 @@ export function validateAgainstEvent(parsed, event, now = new Date()) {
   return { granted, reasons };
 }
 
-// The QR's event window [startDate, endDate] must overlap the event's
-// [validFrom, validTo] window, and `now` must fall within the event window.
+// The QR's event window [startDate, endDate] must overlap the configured
+// event's [validFrom, validTo] window. This confirms the credential was
+// issued for *this* event, independent of when the scan happens (so the
+// door can be tested before the event and works throughout it).
 function dateInRange(parsed, event, now) {
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const from = toDate((event.validFrom || '').replace(/-/g, '')) ?? null;
   const to = toDate((event.validTo || '').replace(/-/g, '')) ?? null;
 
-  if (from && today < from) return false;
-  if (to && today > to) return false;
-
-  // If the QR carries an event window, ensure it overlaps the configured window.
   const qrStart = toDate(parsed.fields.startDate);
   const qrEnd = toDate(parsed.fields.endDate) ?? qrStart;
+
+  // No configured range → nothing to enforce.
+  if (!from && !to) return true;
+  // QR carries no parseable dates → can't confirm.
+  if (!qrStart && !qrEnd) return false;
+
+  // Require the QR window to overlap the configured window.
   if (from && qrEnd && qrEnd < from) return false;
   if (to && qrStart && qrStart > to) return false;
 

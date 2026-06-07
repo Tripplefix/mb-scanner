@@ -39,10 +39,18 @@ test('denies wrong location', () => {
   assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 11)).granted, false);
 });
 
-test('denies outside date range', () => {
+test('grants before the event when QR dates match (early door test)', () => {
+  // QR is for 2026-06-10..12; scanning on 06-07 should still pass.
   const p = parseMB(samples[0]);
   const ev = { matchLocation: false, matchDates: true, validFrom: '2026-06-10', validTo: '2026-06-12' };
-  assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 20)).granted, false);
+  assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 7)).granted, true);
+});
+
+test('denies when QR event dates fall outside configured range', () => {
+  // QR is for 2026-06-10..12 but the configured event is a different week.
+  const p = parseMB(samples[0]);
+  const ev = { matchLocation: false, matchDates: true, validFrom: '2026-07-01', validTo: '2026-07-03' };
+  assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 11)).granted, false);
 });
 
 test('case-insensitive venue match', () => {
