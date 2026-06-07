@@ -22,9 +22,9 @@ COPY backend/ ./
 COPY --from=frontend /app/backend/public ./public
 
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=8080
 # SQLite database lives on the mounted volume.
 ENV DATA_DIR=/data
 
-EXPOSE 3000
+EXPOSE 8080
 CMD ["node", "server.js"]
