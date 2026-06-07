@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for mb-scanner on 2026-06-07T11:48:07Z
+# fly.toml app configuration file generated for mb-scanner on 2026-06-07T11:54:33Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -18,7 +18,7 @@ primary_region = 'fra'
   destination = '/data'
 
 [http_service]
-  internal_port = 8080
+  internal_port = 3000
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
