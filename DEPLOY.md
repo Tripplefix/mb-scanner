@@ -4,6 +4,34 @@ The app ships as a single Docker image: the React/PWA frontend is built and
 served by the Express backend, with the SQLite database stored on a persistent
 Fly volume mounted at `/data`.
 
+## Option 1 — Browser only (no CLI install) ✅ recommended
+
+GitHub Actions runs the Fly CLI for you. The workflow at
+`.github/workflows/fly-deploy.yml` creates the app, creates the volume, and
+deploys — all automatically. You only do two things in the browser:
+
+1. **Pick a unique app name.** App names are global on Fly, so `mb-scanner` is
+   likely taken. Edit `app = "..."` in `fly.toml` to something unique
+   (e.g. `mb-scanner-isler`). Edit it directly on GitHub if you like.
+
+2. **Create a Fly access token.** In the Fly dashboard:
+   **Account (top-right) → Tokens** (or https://fly.io/dashboard → Tokens) →
+   create an org/personal access token → copy it.
+
+3. **Add it to GitHub.** Repo → **Settings → Secrets and variables → Actions →
+   New repository secret**: name `FLY_API_TOKEN`, value = the token.
+
+4. **Run the deploy.** Either merge this branch to `main`, or go to the repo's
+   **Actions** tab → **Deploy to Fly.io** → **Run workflow**.
+
+When it finishes, your app is live at `https://<your-app-name>.fly.dev`
+(scanner at `/`, admin at `/admin`). HTTPS is automatic.
+
+> Note: Fly has no Vercel-style "deploy from dashboard" button — this Actions
+> workflow is the browser-only equivalent.
+
+## Option 2 — Fly CLI (from your machine)
+
 ## One-time setup
 
 1. **Install the Fly CLI**
