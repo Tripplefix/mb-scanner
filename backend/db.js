@@ -13,24 +13,33 @@ db.exec(`
     name        TEXT NOT NULL,
     location    TEXT,
     venue       TEXT,
+    unit        TEXT,
     valid_from  TEXT,
     valid_to    TEXT,
     match_location INTEGER NOT NULL DEFAULT 1,
     match_venue    INTEGER NOT NULL DEFAULT 0,
+    match_unit     INTEGER NOT NULL DEFAULT 0,
     match_dates    INTEGER NOT NULL DEFAULT 1,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+// Migrate existing databases that predate the unit columns.
+const cols = db.prepare("PRAGMA table_info(events)").all().map((r) => r.name);
+if (!cols.includes('unit'))       db.exec("ALTER TABLE events ADD COLUMN unit TEXT");
+if (!cols.includes('match_unit')) db.exec("ALTER TABLE events ADD COLUMN match_unit INTEGER NOT NULL DEFAULT 0");
 
 const serialize = (row) => ({
   id: row.id,
   name: row.name,
   location: row.location,
   venue: row.venue,
+  unit: row.unit,
   validFrom: row.valid_from,
   validTo: row.valid_to,
   matchLocation: !!row.match_location,
   matchVenue: !!row.match_venue,
+  matchUnit: !!row.match_unit,
   matchDates: !!row.match_dates,
   createdAt: row.created_at,
 });
@@ -45,8 +54,8 @@ export const getEvent = (id) => {
 
 export const createEvent = (e) => {
   const stmt = db.prepare(`
-    INSERT INTO events (name, location, venue, valid_from, valid_to, match_location, match_venue, match_dates)
-    VALUES (@name, @location, @venue, @validFrom, @validTo, @matchLocation, @matchVenue, @matchDates)
+    INSERT INTO events (name, location, venue, unit, valid_from, valid_to, match_location, match_venue, match_unit, match_dates)
+    VALUES (@name, @location, @venue, @unit, @validFrom, @validTo, @matchLocation, @matchVenue, @matchUnit, @matchDates)
   `);
   const info = stmt.run(normalize(e));
   return getEvent(info.lastInsertRowid);
@@ -55,9 +64,10 @@ export const createEvent = (e) => {
 export const updateEvent = (id, e) => {
   const stmt = db.prepare(`
     UPDATE events SET
-      name = @name, location = @location, venue = @venue,
+      name = @name, location = @location, venue = @venue, unit = @unit,
       valid_from = @validFrom, valid_to = @validTo,
-      match_location = @matchLocation, match_venue = @matchVenue, match_dates = @matchDates
+      match_location = @matchLocation, match_venue = @matchVenue,
+      match_unit = @matchUnit, match_dates = @matchDates
     WHERE id = @id
   `);
   stmt.run({ ...normalize(e), id });
@@ -71,10 +81,12 @@ const normalize = (e) => ({
   name: e.name ?? '',
   location: e.location ?? null,
   venue: e.venue ?? null,
+  unit: e.unit ?? null,
   validFrom: e.validFrom ?? null,
   validTo: e.validTo ?? null,
   matchLocation: e.matchLocation === false ? 0 : 1,
   matchVenue: e.matchVenue === true ? 1 : 0,
+  matchUnit: e.matchUnit === true ? 1 : 0,
   matchDates: e.matchDates === false ? 0 : 1,
 });
 

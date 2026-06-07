@@ -39,11 +39,16 @@ test('denies wrong location', () => {
   assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 11)).granted, false);
 });
 
-test('grants before the event when QR dates match (early door test)', () => {
-  // QR is for 2026-06-10..12; scanning on 06-07 should still pass.
+test('denies when scanning before the event opens (today not in range)', () => {
   const p = parseMB(samples[0]);
   const ev = { matchLocation: false, matchDates: true, validFrom: '2026-06-10', validTo: '2026-06-12' };
-  assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 7)).granted, true);
+  assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 7)).granted, false);
+});
+
+test('grants when scanning on a day within the event range', () => {
+  const p = parseMB(samples[0]);
+  const ev = { matchLocation: false, matchDates: true, validFrom: '2026-06-10', validTo: '2026-06-12' };
+  assert.equal(validateAgainstEvent(p, ev, new Date(2026, 5, 11)).granted, true);
 });
 
 test('denies when QR event dates fall outside configured range', () => {

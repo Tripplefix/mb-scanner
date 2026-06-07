@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { fetchEvents, loadCachedEvent, cacheSelectedEvent, clearCachedEvent } from '../api.js';
 import { parseMB, validateAgainstEvent } from '../mb.js';
+import { beep } from '../beep.js';
 
 export default function Scanner() {
   const [events, setEvents] = useState([]);
@@ -55,7 +56,7 @@ export default function Scanner() {
                 <button className="event-item" onClick={() => selectEvent(e)}>
                   <strong>{e.name}</strong>
                   <span className="muted">
-                    {[e.location, e.venue].filter(Boolean).join(' · ')}
+                    {[e.location, e.venue, e.unit].filter(Boolean).join(' · ')}
                     {e.validFrom && ` · ${e.validFrom}${e.validTo ? `–${e.validTo}` : ''}`}
                   </span>
                 </button>
@@ -85,10 +86,9 @@ function ScanView({ event, onChangeEvent, offline }) {
       .decodeFromVideoDevice(undefined, videoRef.current, (res) => {
         if (cancelled || !res) return;
         const text = res.getText();
-        if (text === lastRef.current) return; // debounce identical reads
+        if (text === lastRef.current) return;
         lastRef.current = text;
         handleScan(text);
-        // brief cooldown so the same code doesn't spam
         setTimeout(() => { lastRef.current = ''; }, 2500);
       })
       .then((controls) => { controlsRef.current = controls; })
@@ -104,10 +104,12 @@ function ScanView({ event, onChangeEvent, offline }) {
   const handleScan = (text) => {
     const parsed = parseMB(text);
     if (!parsed.ok) {
+      beep(false);
       setResult({ granted: false, error: parsed.error, parsed: null, reasons: [] });
       return;
     }
     const { granted, reasons } = validateAgainstEvent(parsed, event);
+    beep(granted);
     setResult({ granted, parsed, reasons });
   };
 
@@ -117,7 +119,7 @@ function ScanView({ event, onChangeEvent, offline }) {
         <div>
           <h1>{event.name}</h1>
           <span className="muted small">
-            {[event.location, event.venue].filter(Boolean).join(' · ')}
+            {[event.location, event.venue, event.unit].filter(Boolean).join(' · ')}
             {offline && <span className="badge">offline</span>}
           </span>
         </div>

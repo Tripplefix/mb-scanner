@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { fetchEvents, createEvent, updateEvent, deleteEvent } from '../api.js';
 
 const EMPTY = {
-  name: '', location: '', venue: '', validFrom: '', validTo: '',
-  matchLocation: true, matchVenue: false, matchDates: true,
+  name: '', location: '', venue: '', unit: '', validFrom: '', validTo: '',
+  matchLocation: true, matchVenue: false, matchUnit: false, matchDates: true,
 };
 
 export default function Admin() {
@@ -38,9 +38,9 @@ export default function Admin() {
   const edit = (ev) => {
     setEditingId(ev.id);
     setForm({
-      name: ev.name || '', location: ev.location || '', venue: ev.venue || '',
+      name: ev.name || '', location: ev.location || '', venue: ev.venue || '', unit: ev.unit || '',
       validFrom: ev.validFrom || '', validTo: ev.validTo || '',
-      matchLocation: ev.matchLocation, matchVenue: ev.matchVenue, matchDates: ev.matchDates,
+      matchLocation: ev.matchLocation, matchVenue: ev.matchVenue, matchUnit: ev.matchUnit, matchDates: ev.matchDates,
     });
   };
 
@@ -64,6 +64,7 @@ export default function Admin() {
         <label>Name<input value={form.name} onChange={set('name')} required /></label>
         <label>Location<input value={form.location} onChange={set('location')} placeholder="e.g. Bonaduz" /></label>
         <label>Venue<input value={form.venue} onChange={set('venue')} placeholder="e.g. Hotel Post" /></label>
+        <label>Unit<input value={form.unit} onChange={set('unit')} placeholder="e.g. Ter Div Stabskp 3" /></label>
         <div className="row">
           <label>Valid from<input type="date" value={form.validFrom} onChange={set('validFrom')} /></label>
           <label>Valid to<input type="date" value={form.validTo} onChange={set('validTo')} /></label>
@@ -72,7 +73,8 @@ export default function Admin() {
           <legend>Matching rules</legend>
           <label className="check"><input type="checkbox" checked={form.matchLocation} onChange={set('matchLocation')} /> Location must match</label>
           <label className="check"><input type="checkbox" checked={form.matchVenue} onChange={set('matchVenue')} /> Venue must match</label>
-          <label className="check"><input type="checkbox" checked={form.matchDates} onChange={set('matchDates')} /> Enforce date range</label>
+          <label className="check"><input type="checkbox" checked={form.matchUnit} onChange={set('matchUnit')} /> Unit must match</label>
+          <label className="check"><input type="checkbox" checked={form.matchDates} onChange={set('matchDates')} /> QR dates must match &amp; event must be active today</label>
         </fieldset>
         <div className="row">
           <button type="submit" className="btn primary">{editingId ? 'Save' : 'Create'}</button>

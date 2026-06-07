@@ -69,6 +69,12 @@ function toDate(s) {
   return new Date(Number(s.slice(0, 4)), Number(s.slice(4, 6)) - 1, Number(s.slice(6, 8)));
 }
 
+// 'YYYY-MM-DD' or 'YYYYMMDD' -> Date at local midnight, or null
+function toDateFlexible(s) {
+  if (!s) return null;
+  return toDate(s.replace(/-/g, ''));
+}
+
 const norm = (s) => (s ?? '').toString().trim().toLowerCase();
 
 /**
@@ -78,6 +84,7 @@ const norm = (s) => (s ?? '').toString().trim().toLowerCase();
  */
 export function validateAgainstEvent(parsed, event, now = new Date()) {
   const reasons = [];
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
   reasons.push({
     label: 'Format',
@@ -103,40 +110,53 @@ export function validateAgainstEvent(parsed, event, now = new Date()) {
     });
   }
 
-  if (event.matchDates) {
-    const ok = dateInRange(parsed, event, now);
+  if (event.matchUnit && event.unit) {
+    const ok = norm(parsed.fields.unit) === norm(event.unit);
     reasons.push({
-      label: 'Date valid',
+      label: 'Unit',
       ok,
-      detail: dateRangeDetail(event),
+      detail: `${parsed.fields.unit || '—'} vs ${event.unit}`,
+    });
+  }
+
+  if (event.matchDates) {
+    const from = toDateFlexible(event.validFrom);
+    const to = toDateFlexible(event.validTo);
+    const qrStart = toDate(parsed.fields.startDate);
+    const qrEnd = toDate(parsed.fields.endDate) ?? qrStart;
+
+    // Check 1: the QR's event dates must overlap the configured event window
+    // (confirms this credential belongs to this event).
+    let qrMatchesEvent = true;
+    if (from || to) {
+      if (!qrStart && !qrEnd) {
+        qrMatchesEvent = false;
+      } else {
+        if (from && qrEnd && qrEnd < from) qrMatchesEvent = false;
+        if (to && qrStart && qrStart > to) qrMatchesEvent = false;
+      }
+    }
+
+    // Check 2: today must fall within the event's valid date range
+    // (the event must be currently running).
+    let todayInRange = true;
+    if (from && today < from) todayInRange = false;
+    if (to && today > to) todayInRange = false;
+
+    const ok = qrMatchesEvent && todayInRange;
+    reasons.push({
+      label: 'Event date',
+      ok,
+      detail: !qrMatchesEvent
+        ? `QR dates don't match event (${event.validFrom} → ${event.validTo})`
+        : !todayInRange
+          ? `Event not active today (${event.validFrom} → ${event.validTo})`
+          : dateRangeDetail(event),
     });
   }
 
   const granted = reasons.every((r) => r.ok);
   return { granted, reasons };
-}
-
-// The QR's event window [startDate, endDate] must overlap the configured
-// event's [validFrom, validTo] window. This confirms the credential was
-// issued for *this* event, independent of when the scan happens (so the
-// door can be tested before the event and works throughout it).
-function dateInRange(parsed, event, now) {
-  const from = toDate((event.validFrom || '').replace(/-/g, '')) ?? null;
-  const to = toDate((event.validTo || '').replace(/-/g, '')) ?? null;
-
-  const qrStart = toDate(parsed.fields.startDate);
-  const qrEnd = toDate(parsed.fields.endDate) ?? qrStart;
-
-  // No configured range → nothing to enforce.
-  if (!from && !to) return true;
-  // QR carries no parseable dates → can't confirm.
-  if (!qrStart && !qrEnd) return false;
-
-  // Require the QR window to overlap the configured window.
-  if (from && qrEnd && qrEnd < from) return false;
-  if (to && qrStart && qrStart > to) return false;
-
-  return true;
 }
 
 function dateRangeDetail(event) {
