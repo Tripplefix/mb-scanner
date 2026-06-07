@@ -3,7 +3,10 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const db = new Database(join(__dirname, 'events.db'));
+// DATA_DIR lets the SQLite file live on a persistent volume (e.g. Fly.io /data).
+// Falls back to the backend dir for local development.
+const dataDir = process.env.DATA_DIR || __dirname;
+const db = new Database(join(dataDir, 'events.db'));
 
 db.pragma('journal_mode = WAL');
 
