@@ -10,6 +10,7 @@ export default function Scanner() {
   const [event, setEvent] = useState(() => loadCachedEvent());
   const [offline, setOffline] = useState(!navigator.onLine);
   const [loadError, setLoadError] = useState(null);
+  const [debug, setDebug] = useState(false);
 
   useEffect(() => {
     const on = () => setOffline(false);
@@ -38,12 +39,15 @@ export default function Scanner() {
     clearCachedEvent();
   };
 
-  if (!event) {
+  if (!event && !debug) {
     return (
       <div className="page">
         <header className="topbar">
           <h1>MB Scanner</h1>
-          <Link to="/admin" className="link">Admin</Link>
+          <div className="topbar-actions">
+            <button className="link" onClick={() => setDebug(true)}>Debug</button>
+            <Link to="/admin" className="link">Admin</Link>
+          </div>
         </header>
         <div className="card">
           <h2>Select an event</h2>
@@ -68,10 +72,97 @@ export default function Scanner() {
     );
   }
 
-  return <ScanView event={event} onChangeEvent={changeEvent} offline={offline} />;
+  if (debug) {
+    return <DebugView onExit={() => setDebug(false)} offline={offline} />;
+  }
+
+  return <ScanView event={event} onChangeEvent={changeEvent} offline={offline} onDebug={() => setDebug(true)} />;
 }
 
-function ScanView({ event, onChangeEvent, offline }) {
+function DebugView({ onExit, offline }) {
+  const videoRef = useRef(null);
+  const controlsRef = useRef(null);
+  const lastRef = useRef('');
+  const [result, setResult] = useState(null);
+  const [camError, setCamError] = useState(null);
+
+  useEffect(() => {
+    const reader = new BrowserMultiFormatReader();
+    let cancelled = false;
+
+    reader
+      .decodeFromVideoDevice(undefined, videoRef.current, (res) => {
+        if (cancelled || !res) return;
+        const text = res.getText();
+        if (text === lastRef.current) return;
+        lastRef.current = text;
+        setResult(parseMB(text));
+        setTimeout(() => { lastRef.current = ''; }, 2500);
+      })
+      .then((controls) => { controlsRef.current = controls; })
+      .catch((err) => setCamError(err?.message || 'Camera unavailable'));
+
+    return () => {
+      cancelled = true;
+      controlsRef.current?.stop();
+    };
+  }, []);
+
+  const FIELD_LABELS = [
+    ['format', 'Format'], ['personId', 'Person ID'], ['lastName', 'Last name'],
+    ['firstName', 'First name'], ['dob', 'Date of birth'], ['rank', 'Rank'],
+    ['unit', 'Unit'], ['startDate', 'Start date'], ['startTime', 'Start time'],
+    ['location', 'Location'], ['venue', 'Venue'], ['endDate', 'End date'],
+    ['endLocation', 'End location'], ['status', 'Status'], ['flag', 'Flag'],
+    ['issueDate', 'Issue date'],
+  ];
+
+  return (
+    <div className="page">
+      <header className="topbar">
+        <div>
+          <h1>Debug scanner</h1>
+          <span className="muted small">raw QR values only — no validation{offline && <span className="badge">offline</span>}</span>
+        </div>
+        <button className="link" onClick={onExit}>Exit debug</button>
+      </header>
+
+      <div className="scanner-wrap">
+        <video ref={videoRef} className="video" muted playsInline />
+        <div className="reticle" />
+      </div>
+
+      {camError && <p className="warn">Camera error: {camError}</p>}
+
+      {result && (
+        <div className="card" style={{ marginTop: 12 }}>
+          {!result.ok
+            ? <p className="warn">Parse error: {result.error}</p>
+            : <>
+                <table className="debug-table">
+                  <tbody>
+                    {FIELD_LABELS.map(([key, label]) => (
+                      <tr key={key}>
+                        <td className="muted small">{label}</td>
+                        <td>{result.fields[key] || <span className="muted">—</span>}</td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="muted small">Signature</td>
+                      <td className="sig">{result.signature || <span className="muted">—</span>}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="muted small" style={{ marginTop: 8 }}>Tap anywhere to clear</p>
+              </>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScanView({ event, onChangeEvent, offline, onDebug }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const lastRef = useRef('');
@@ -123,7 +214,10 @@ function ScanView({ event, onChangeEvent, offline }) {
             {offline && <span className="badge">offline</span>}
           </span>
         </div>
-        <button className="link" onClick={onChangeEvent}>Change event</button>
+        <div className="topbar-actions">
+          <button className="link" onClick={onDebug}>Debug</button>
+          <button className="link" onClick={onChangeEvent}>Change event</button>
+        </div>
       </header>
 
       <div className="scanner-wrap">

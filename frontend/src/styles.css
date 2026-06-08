@@ -97,3 +97,10 @@ input {
 .reasons .ok { color: #bbf7d0; }
 .reasons .bad { color: #fecaca; }
 .tap-hint { opacity: 0.7; }
+
+.topbar-actions { display: flex; gap: 16px; align-items: center; }
+
+.debug-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.debug-table td { padding: 5px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.debug-table td:first-child { width: 110px; padding-right: 12px; white-space: nowrap; }
+.sig { font-size: 0.72rem; word-break: break-all; color: var(--muted); }
