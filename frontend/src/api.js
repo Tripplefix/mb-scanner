@@ -1,55 +1,64 @@
-// Tiny API client + offline cache helper for events.
+// All event data lives in localStorage — no backend, no network required.
 
-const CACHE_KEY = 'mb-scanner.events';
+const KEY = 'mb-scanner.events';
 
-export async function fetchEvents() {
-  const res = await fetch('/api/events');
-  if (!res.ok) throw new Error('Failed to load events');
-  return res.json();
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+  catch { return []; }
 }
 
-export async function createEvent(data) {
-  const res = await fetch('/api/events', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error((await res.json()).error || 'Create failed');
-  return res.json();
+function save(events) {
+  localStorage.setItem(KEY, JSON.stringify(events));
 }
 
-export async function updateEvent(id, data) {
-  const res = await fetch(`/api/events/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Update failed');
-  return res.json();
+let _id = Math.max(0, ...load().map((e) => e.id)) + 1;
+
+export function fetchEvents() {
+  return Promise.resolve(load());
 }
 
-export async function deleteEvent(id) {
-  const res = await fetch(`/api/events/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Delete failed');
+export function createEvent(data) {
+  const events = load();
+  const event = { ...normalize(data), id: _id++, createdAt: new Date().toISOString() };
+  save([event, ...events]);
+  return Promise.resolve(event);
 }
 
-// --- Offline cache for the selected event ---
-// Once an event is loaded into the scanner, its config is persisted so the
-// scanner keeps working with no network connection.
+export function updateEvent(id, data) {
+  const events = load().map((e) => e.id === id ? { ...e, ...normalize(data) } : e);
+  save(events);
+  return Promise.resolve(events.find((e) => e.id === id));
+}
+
+export function deleteEvent(id) {
+  save(load().filter((e) => e.id !== id));
+  return Promise.resolve();
+}
+
+function normalize(d) {
+  return {
+    name: d.name ?? '',
+    location: d.location ?? '',
+    venue: d.venue ?? '',
+    unit: d.unit ?? '',
+    validFrom: d.validFrom ?? '',
+    validTo: d.validTo ?? '',
+    matchLocation: d.matchLocation !== false,
+    matchVenue: !!d.matchVenue,
+    matchUnit: !!d.matchUnit,
+    matchDates: d.matchDates !== false,
+  };
+}
+
+// --- Selected-event cache (for offline scanning) ---
+const CACHE_KEY = 'mb-scanner.selected-event';
 
 export function cacheSelectedEvent(event) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(event));
-  } catch { /* ignore quota errors */ }
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify(event)); } catch { }
 }
 
 export function loadCachedEvent() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch { return null; }
 }
 
 export function clearCachedEvent() {
